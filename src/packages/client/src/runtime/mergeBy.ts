@@ -27,7 +27,7 @@ export function mergeBy<T>(
   return result
 }
 
-const groupBy = <T>(
+export const groupBy = <T>(
   arr: T[],
   cb: (element: T) => string,
 ): { [key: string]: T[] } => {

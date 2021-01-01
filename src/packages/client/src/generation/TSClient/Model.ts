@@ -40,6 +40,7 @@ import { SchemaOutputType } from './SchemaOutput'
 import { TAB_SIZE } from './constants'
 import { PayloadType } from './Payload'
 import { klona } from 'klona'
+import { groupBy } from "../../runtime/mergeBy"
 
 export class Model implements Generatable {
   protected outputType?: OutputType
@@ -339,21 +340,17 @@ ${indent(
       'groupBy',
     )
 
+    const fieldsByName = groupBy<DMMF.SchemaField>(outputType.fields, (field: DMMF.SchemaField) => field.name)
+
     const includeType = hasRelationField
       ? `\nexport type ${getIncludeName(model.name)} = {
 ${indent(
-  outputType.fields
-    .filter((f) => f.outputType.location === 'outputObjectTypes')
-    .map(
-      (f) =>
-        `${f.name}?: boolean` +
-        (f.outputType.location === 'outputObjectTypes'
-          ? ` | ${getFieldArgName(f)}`
-          : ''),
-    )
-    .join('\n'),
-  TAB_SIZE,
-)}
+        Object.entries(fieldsByName)
+          .filter(([_, fields]) => fields.some(f => f.outputType.location === 'outputObjectTypes'))
+          .map(([fieldName, fields]) => `${fieldName}?: boolean` + getFieldTypeName(fields))
+          .join('\n'),
+        TAB_SIZE,
+      )}
 }\n`
       : ''
 
@@ -368,17 +365,11 @@ ${groupByEnabled ? this.getGroupByTypes() : ''}
 
 export type ${getSelectName(model.name)} = {
 ${indent(
-  outputType.fields
-    .map(
-      (f) =>
-        `${f.name}?: boolean` +
-        (f.outputType.location === 'outputObjectTypes'
-          ? ` | ${getFieldArgName(f)}`
-          : ''),
-    )
-    .join('\n'),
-  TAB_SIZE,
-)}
+      Object.entries(fieldsByName)
+        .map(([fieldName, fields]) => `${fieldName}?: boolean` + getFieldTypeName(fields))
+        .join('\n'),
+      TAB_SIZE,
+    )}
 }
 ${includeType}
 ${new PayloadType(this.outputType!).toTS()}
@@ -573,4 +564,11 @@ ${f.name}<T extends ${getFieldArgName(
   finally(onfinally?: (() => void) | undefined | null): Promise<T>;
 }`
   }
+}
+
+function getFieldTypeName(fields: DMMF.SchemaField[]): string {
+  const objectFieldNames =  fields
+    .map((f) => f.outputType.location === 'outputObjectTypes' ? getFieldArgName(f) : '')
+    .filter(name => !!name)
+  return objectFieldNames.length > 0 ? ' | ' + objectFieldNames.join(' | ') : ''
 }

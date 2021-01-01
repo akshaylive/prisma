@@ -58,6 +58,25 @@ model Like {
   @@unique([userId, postId])
 }
 
+model A {
+  id  String @id @default(cuid())
+  c   C?
+}
+
+model B {
+  id  String @id @default(cuid())
+  c   C?
+}
+
+model C {
+  id     String @id @default(cuid())
+
+  targetType String
+  targetId   String
+  target     A @relation(fields: [targetId], references: [id], disambiguator: targetType)
+  target     B @relation(fields: [targetId], references: [id], disambiguator: targetType)
+}
+
 enum Sound {
   Bang
   Click
